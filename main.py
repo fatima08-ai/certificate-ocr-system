@@ -60,10 +60,24 @@ async def extract_certificate(file: UploadFile = File(...), db: Session = Depend
     except pytesseract.TesseractNotFoundError:
         raise HTTPException(
             status_code=500,
-            detail="OCR engine not found on the server. Please contact the administrator."
+            detail="Tesseract OCR engine not found. Verify Tesseract is installed and the "
+                   "path in ocr_engine.py matches your installation (see README Troubleshooting)."
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"OCR processing failed: {str(e)}")
+        error_msg = str(e)
+        if "poppler" in error_msg.lower() or "page count" in error_msg.lower():
+            raise HTTPException(
+                status_code=500,
+                detail="PDF conversion failed. Poppler may not be installed or the POPPLER_PATH "
+                       "in ocr_engine.py may not match your installation (see README Troubleshooting)."
+            )
+        elif "memory" in error_msg.lower():
+            raise HTTPException(
+                status_code=500,
+                detail="Memory error during processing. Try a smaller image or lower resolution file."
+            )
+        else:
+            raise HTTPException(status_code=500, detail=f"OCR processing failed: {error_msg}")
 
     try:
         structured_data = extract_fields(raw_text)
