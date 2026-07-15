@@ -18,23 +18,42 @@ async def home(request: Request):
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".tiff"}
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".tiff", ".pdf"}
+
+import pytesseract
 
 @app.post("/extract")
 async def extract_certificate(file: UploadFile = File(...)):
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(status_code=400, detail=f"Unsupported file type: {ext}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type '{ext}'. Please upload a JPG, PNG, or TIFF image."
+        )
+    if file.size == 0:
+        raise HTTPException(status_code=400, detail="The uploaded file is empty. Please select a valid file.")
 
     save_path = f"uploads/{file.filename}"
-    with open(save_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    try:
+        with open(save_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to save the uploaded file. Please try again.")
 
     try:
         raw_text = extract_text(save_path)
+    except pytesseract.TesseractNotFoundError:
+        raise HTTPException(
+            status_code=500,
+            detail="OCR engine not found on the server. Please contact the administrator."
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"OCR processing failed: {str(e)}")
+
+    try:
         structured_data = extract_fields(raw_text)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Field extraction failed: {str(e)}")
 
     return {
         "filename": file.filename,

@@ -13,9 +13,11 @@
 <body>
     <h1>Certificate OCR System</h1>
     <form id="uploadForm">
-        <input type="file" id="fileInput" accept=".jpg,.jpeg,.png" required>
+        <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.pdf" required>
         <button type="submit">Extract Data</button>
     </form>
+
+    <div id="errorMessage" style="display:none; color:#b00020; background:#fdecea; padding:12px; border-radius:4px; margin-top:16px;"></div>
 
     <div id="result">
         <h2>Extracted Fields</h2>
@@ -25,17 +27,30 @@
     </div>
 
     <script>
-        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const fileInput = document.getElementById('fileInput');
-            const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const errorBox = document.getElementById('errorMessage');
+        const resultBox = document.getElementById('result');
+        errorBox.style.display = 'none';
+        resultBox.style.display = 'none';
 
+        const fileInput = document.getElementById('fileInput');
+        if (!fileInput.files.length) {
+            errorBox.textContent = 'Please select a file first.';
+            errorBox.style.display = 'block';
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        try {
             const response = await fetch('/extract', { method: 'POST', body: formData });
             const data = await response.json();
 
             if (!response.ok) {
-                alert('Error: ' + data.detail);
+                errorBox.textContent = data.detail || 'Something went wrong. Please try again.';
+                errorBox.style.display = 'block';
                 return;
             }
 
@@ -45,8 +60,12 @@
                 table.innerHTML += `<tr><th>${key}</th><td>${value ?? 'Not found'}</td></tr>`;
             }
             document.getElementById('rawText').textContent = data.raw_text;
-            document.getElementById('result').style.display = 'block';
-        });
+            resultBox.style.display = 'block';
+        } catch (err) {
+            errorBox.textContent = 'Could not connect to the server. Please check your connection and try again.';
+            errorBox.style.display = 'block';
+        }
+    });
     </script>
 </body>
 </html>
