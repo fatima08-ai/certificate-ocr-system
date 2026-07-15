@@ -41,7 +41,9 @@ async def extract_certificate(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail="Failed to save the uploaded file. Please try again.")
 
     try:
-        raw_text = extract_text(save_path)
+        ocr_result = extract_text(save_path)
+        raw_text = ocr_result["text"]
+        confidence = ocr_result["confidence"]
     except pytesseract.TesseractNotFoundError:
         raise HTTPException(
             status_code=500,
@@ -58,5 +60,6 @@ async def extract_certificate(file: UploadFile = File(...)):
     return {
         "filename": file.filename,
         "raw_text": raw_text,
+        "confidence": confidence,
         "extracted_fields": structured_data
     }
