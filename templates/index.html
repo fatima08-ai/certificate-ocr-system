@@ -12,10 +12,12 @@
 </head>
 <body>
     <h1>Certificate OCR System</h1>
-    <form id="uploadForm">
-        <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.pdf" required>
-        <button type="submit">Extract Data</button>
-    </form>
+        <div id="dropZone" style="border: 2px dashed #999; border-radius: 8px; padding: 40px; text-align: center; cursor: pointer; transition: 0.2s;">
+    <p id="dropText">Drag and drop a certificate here, or click to browse</p>
+    <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.pdf" style="display:none;">
+    <div id="previewContainer" style="margin-top: 16px;"></div>
+</div>
+<button type="button" id="extractBtn" style="margin-top: 16px;" disabled>Extract Data</button>
 
     <div id="errorMessage" style="display:none; color:#b00020; background:#fdecea; padding:12px; border-radius:4px; margin-top:16px;"></div>
 
@@ -27,22 +29,68 @@
     </div>
 
     <script>
-    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const previewContainer = document.getElementById('previewContainer');
+    const extractBtn = document.getElementById('extractBtn');
+    const errorBox = document.getElementById('errorMessage');
+    const resultBox = document.getElementById('result');
+
+    let selectedFile = null;
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
-        const errorBox = document.getElementById('errorMessage');
-        const resultBox = document.getElementById('result');
+        dropZone.style.borderColor = '#4a90d9';
+        dropZone.style.background = '#f0f7ff';
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.style.borderColor = '#999';
+        dropZone.style.background = '';
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = '#999';
+        dropZone.style.background = '';
+        if (e.dataTransfer.files.length) {
+            handleFile(e.dataTransfer.files[0]);
+        }
+    });
+
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length) {
+            handleFile(fileInput.files[0]);
+        }
+    });
+
+    function handleFile(file) {
+        selectedFile = file;
+        extractBtn.disabled = false;
+        previewContainer.innerHTML = '';
+
+        if (file.type.startsWith('image/')) {
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(file);
+            img.style.maxWidth = '200px';
+            img.style.maxHeight = '200px';
+            img.style.borderRadius = '4px';
+            previewContainer.appendChild(img);
+        } else {
+            previewContainer.textContent = `📄 ${file.name}`;
+        }
+    }
+
+    extractBtn.addEventListener('click', async () => {
+        if (!selectedFile) return;
+
         errorBox.style.display = 'none';
         resultBox.style.display = 'none';
 
-        const fileInput = document.getElementById('fileInput');
-        if (!fileInput.files.length) {
-            errorBox.textContent = 'Please select a file first.';
-            errorBox.style.display = 'block';
-            return;
-        }
-
         const formData = new FormData();
-        formData.append('file', fileInput.files[0]);
+        formData.append('file', selectedFile);
 
         try {
             const response = await fetch('/extract', { method: 'POST', body: formData });

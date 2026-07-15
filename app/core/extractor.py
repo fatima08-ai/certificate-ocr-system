@@ -18,7 +18,7 @@ def extract_fields(raw_text: str) -> dict:
     if date_match:
         fields["issue_date"] = date_match.group()
 
-    cert_id_match = re.search(r'\b[A-Z0-9]{3,6}-[A-Z0-9]{3,6}\b', raw_text)
+    cert_id_match = re.search(r'\b[A-Z0-9]{2,8}(?:-[A-Z0-9]{2,8}){1,3}\b', raw_text)
     if cert_id_match:
         fields["certificate_number"] = cert_id_match.group()
 
