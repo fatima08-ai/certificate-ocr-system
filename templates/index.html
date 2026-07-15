@@ -30,7 +30,7 @@
         <h2>Extracted Fields</h2>
         <p id="confidenceBadge" style="display:inline-block; padding: 4px 10px; border-radius: 4px; font-size: 14px; font-weight: bold;"></p>
         <table id="fieldsTable"></table>
-        <h3>Raw OCR Text</h3>
+        <h3>Raw OCR Text <button type="button" id="copyBtn" style="font-size:12px; padding:4px 8px; margin-left:8px;">Copy JSON</button></h3>
         <pre id="rawText"></pre>
     </div>
 
@@ -42,6 +42,8 @@
     const errorBox = document.getElementById('errorMessage');
     const resultBox = document.getElementById('result');
     const exportBtn = document.getElementById('exportBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    let lastExtractedData = null;
 
     let selectedFile = null;
 
@@ -135,6 +137,7 @@
                 table.innerHTML += `<tr><th>${key}</th><td>${value ?? 'Not found'}</td></tr>`;
             }
             document.getElementById('rawText').textContent = data.raw_text;
+            lastExtractedData = data.extracted_fields;
             resultBox.style.display = 'block';
         } catch (err) {
             document.getElementById('loadingSpinner').style.display = 'none';
@@ -166,6 +169,14 @@
         document.body.appendChild(a);
         a.click();
         a.remove();
+    });
+    copyBtn.addEventListener('click', () => {
+        if (!lastExtractedData) return;
+        navigator.clipboard.writeText(JSON.stringify(lastExtractedData, null, 2))
+            .then(() => {
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => { copyBtn.textContent = 'Copy JSON'; }, 1500);
+            });
     });
     </script>
 </body>
