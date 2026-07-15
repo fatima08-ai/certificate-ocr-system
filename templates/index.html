@@ -1,8 +1,52 @@
 <!DOCTYPE html>
 <html>
-<head><title>Certificate OCR System</title></head>
+<head>
+    <title>Certificate OCR System</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 20px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        td, th { border: 1px solid #ccc; padding: 8px 12px; text-align: left; }
+        #result { display: none; }
+        pre { background: #f4f4f4; padding: 12px; white-space: pre-wrap; }
+    </style>
+</head>
 <body>
     <h1>Certificate OCR System</h1>
-    <p>Coming soon: upload form</p>
+    <form id="uploadForm">
+        <input type="file" id="fileInput" accept=".jpg,.jpeg,.png" required>
+        <button type="submit">Extract Data</button>
+    </form>
+
+    <div id="result">
+        <h2>Extracted Fields</h2>
+        <table id="fieldsTable"></table>
+        <h3>Raw OCR Text</h3>
+        <pre id="rawText"></pre>
+    </div>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fileInput = document.getElementById('fileInput');
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            const response = await fetch('/extract', { method: 'POST', body: formData });
+            const data = await response.json();
+
+            if (!response.ok) {
+                alert('Error: ' + data.detail);
+                return;
+            }
+
+            const table = document.getElementById('fieldsTable');
+            table.innerHTML = '';
+            for (const [key, value] of Object.entries(data.extracted_fields)) {
+                table.innerHTML += `<tr><th>${key}</th><td>${value ?? 'Not found'}</td></tr>`;
+            }
+            document.getElementById('rawText').textContent = data.raw_text;
+            document.getElementById('result').style.display = 'block';
+        });
+    </script>
 </body>
 </html>
