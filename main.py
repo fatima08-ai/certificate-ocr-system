@@ -6,6 +6,7 @@ import shutil
 import os
 from fastapi import UploadFile, File, HTTPException
 from app.core.ocr_engine import extract_text
+from app.core.extractor import extract_fields
 
 app = FastAPI(title="Certificate OCR System")
 templates = Jinja2Templates(directory="templates")
@@ -22,7 +23,6 @@ ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".tiff"}
 @app.post("/extract")
 async def extract_certificate(file: UploadFile = File(...)):
     ext = os.path.splitext(file.filename)[1].lower()
-
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail=f"Unsupported file type: {ext}")
 
@@ -32,7 +32,12 @@ async def extract_certificate(file: UploadFile = File(...)):
 
     try:
         raw_text = extract_text(save_path)
+        structured_data = extract_fields(raw_text)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"OCR processing failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
 
-    return {"filename": file.filename, "raw_text": raw_text}
+    return {
+        "filename": file.filename,
+        "raw_text": raw_text,
+        "extracted_fields": structured_data
+    }
