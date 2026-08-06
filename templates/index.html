@@ -1,183 +1,569 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Certificate OCR System</title>
-    <style>
-    body { font-family: Arial, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 20px; }
-    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-    td, th { border: 1px solid #ccc; padding: 8px 12px; text-align: left; }
-    #result { display: none; }
-    pre { background: #f4f4f4; padding: 12px; white-space: pre-wrap; }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Certificate OCR System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1B2432;
+    --ink-soft: #4A5568;
+    --paper: #F7F4EC;
+    --paper-raised: #FFFDF8;
+    --accent: #2E5EFF;
+    --accent-soft: #E4EAFF;
+    --accent-glow: rgba(46, 94, 255, 0.25);
+    --line: #DAD4C2;
+    --success-bg: #E7F1EA;
+    --success-text: #2F7D4F;
+    --warn-bg: #FBF1DC;
+    --warn-text: #8A6D1F;
+    --alert-bg: #F8E9E5;
+    --alert-text: #B3452E;
+    --code-bg: #1B2432;
+    --code-text: #D8DEE9;
+    color-scheme: light;
+  }
+
+  [data-theme="dark"] {
+    --ink: #ECEDF0;
+    --ink-soft: #A0A8B8;
+    --paper: #0F1420;
+    --paper-raised: #171E2E;
+    --accent: #5B8CFF;
+    --accent-soft: #1D2740;
+    --accent-glow: rgba(91, 140, 255, 0.35);
+    --line: #2A3245;
+    --success-bg: #16301F;
+    --success-text: #6FCF97;
+    --warn-bg: #362D14;
+    --warn-text: #E0C069;
+    --alert-bg: #3A1E18;
+    --alert-text: #E38B75;
+    --code-bg: #080B12;
+    --code-text: #B8C4DB;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { transition: background 0.3s ease; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+    line-height: 1.5;
+    transition: background 0.3s ease, color 0.3s ease;
+    animation: fadeUp 0.5s ease;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .topbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+  }
+
+  #themeToggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 6px 14px 6px 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.03em;
+    color: var(--ink-soft);
+    cursor: pointer;
+    transition: border-color 0.2s ease, color 0.2s ease;
+  }
+  #themeToggle:hover { border-color: var(--accent); color: var(--accent); }
+  #themeToggle svg { width: 13px; height: 13px; }
+
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 40px;
+    letter-spacing: -0.01em;
+    margin: 4px 0 6px;
+  }
+
+  .subhead {
+    color: var(--ink-soft);
+    font-size: 15px;
+    margin: 0 0 36px;
+  }
+
+  /* Drop zone — scanner bed */
+  #dropZone {
+    position: relative;
+    overflow: hidden;
+    border: 1.5px dashed var(--line);
+    border-radius: 6px;
+    background: var(--paper-raised);
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+  }
+
+  #dropZone:hover {
+    border-color: var(--accent);
+  }
+
+  #dropZone.dragging {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    box-shadow: 0 0 0 4px var(--accent-glow);
+  }
+
+  #dropZone::before {
+    content: "";
+    position: absolute;
+    top: 0; left: -30%;
+    width: 30%; height: 100%;
+    background: linear-gradient(90deg, transparent, var(--accent-glow), transparent);
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  #dropZone.dragging::before {
+    opacity: 1;
+    animation: sweep 1.3s ease-in-out infinite;
+  }
+
+  @keyframes sweep {
+    0%   { left: -30%; }
+    100% { left: 100%; }
+  }
+
+  #dropText {
+    font-size: 15px;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+
+  #dropText .hint {
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+    margin-top: 8px;
+    text-transform: uppercase;
+  }
+
+  #previewContainer { margin-top: 20px; }
+
+  #previewContainer img {
+    max-width: 180px;
+    max-height: 180px;
+    border-radius: 4px;
+    border: 1px solid var(--line);
+    animation: fadeUp 0.3s ease;
+  }
+
+  #previewContainer .file-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 8px 14px;
+    animation: fadeUp 0.3s ease;
+  }
+
+  .actions { display: flex; gap: 10px; margin-top: 20px; }
+
+  button {
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 11px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+  }
+
+  button:disabled { cursor: not-allowed; opacity: 0.4; }
+
+  #extractBtn {
+    background: var(--accent);
+    color: #fff;
+    border: 1px solid var(--accent);
+  }
+  #extractBtn:not(:disabled):hover {
+    box-shadow: 0 4px 16px var(--accent-glow);
+    transform: translateY(-1px);
+  }
+  #extractBtn:not(:disabled):active { transform: translateY(0); }
+
+  #exportBtn {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line);
+  }
+  #exportBtn:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
+
+  #loadingSpinner {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+
+  .spin-ring {
+    width: 16px; height: 16px;
+    border: 2px solid var(--line);
+    border-top: 2px solid var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #errorMessage {
+    display: none;
+    font-size: 14px;
+    color: var(--alert-text);
+    background: var(--alert-bg);
+    border-left: 3px solid var(--alert-text);
+    padding: 12px 16px;
+    border-radius: 4px;
+    margin-top: 20px;
+    animation: fadeUp 0.25s ease;
+  }
+
+  #result {
+    display: none;
+    margin-top: 44px;
+    animation: fadeUp 0.4s ease;
+  }
+
+  #result h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 22px;
+    margin: 0 0 14px;
+  }
+
+  #confidenceBadge {
+    display: inline-block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-weight: 500;
+    margin-bottom: 18px;
+  }
+
+  #fieldsTable {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  #fieldsTable tr:not(:last-child) th,
+  #fieldsTable tr:not(:last-child) td { border-bottom: 1px solid var(--line); }
+
+  #fieldsTable th {
+    text-align: left;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    padding: 13px 16px;
+    width: 40%;
+    background: var(--paper);
+  }
+
+  #fieldsTable td {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    padding: 13px 16px;
+    color: var(--ink);
+  }
+
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 32px 0 10px;
+  }
+
+  .section-head h3 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 17px;
+    margin: 0;
+  }
+
+  #copyBtn {
+    background: transparent;
+    border: 1px solid var(--line);
+    font-size: 12px;
+    padding: 6px 12px;
+    color: var(--ink-soft);
+  }
+  #copyBtn:hover { border-color: var(--accent); color: var(--accent); }
+
+  pre#rawText {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    background: var(--code-bg);
+    color: var(--code-text);
+    padding: 18px 20px;
+    border-radius: 6px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  footer {
+    margin-top: 64px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+    text-align: center;
+    letter-spacing: 0.03em;
+  }
 </style>
 </head>
 <body>
-    <h1>Certificate OCR System</h1>
-        <div id="dropZone" style="border: 2px dashed #999; border-radius: 8px; padding: 40px; text-align: center; cursor: pointer; transition: 0.2s;">
-    <p id="dropText">Drag and drop a certificate here, or click to browse</p>
-    <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.pdf" style="display:none;">
-    <div id="previewContainer" style="margin-top: 16px;"></div>
-</div>
-<button type="button" id="extractBtn" style="margin-top: 16px;" disabled>Extract Data</button>
-<button type="button" id="exportBtn" style="margin-top: 16px;" disabled>Download as Excel</button>
-<div id="loadingSpinner" style="display:none; text-align:center; margin-top:16px;">
-    <div style="border: 4px solid #f0f0f0; border-top: 4px solid #4a90d9; border-radius: 50%; width: 32px; height: 32px; animation: spin 0.8s linear infinite; margin: 0 auto;"></div>
-    <p style="color:#666; margin-top:8px;">Processing certificate...</p>
-</div>
-    <div id="errorMessage" style="display:none; color:#b00020; background:#fdecea; padding:12px; border-radius:4px; margin-top:16px;"></div>
 
-    <div id="result">
-        <h2>Extracted Fields</h2>
-        <p id="confidenceBadge" style="display:inline-block; padding: 4px 10px; border-radius: 4px; font-size: 14px; font-weight: bold;"></p>
-        <table id="fieldsTable"></table>
-        <h3>Raw OCR Text <button type="button" id="copyBtn" style="font-size:12px; padding:4px 8px; margin-left:8px;">Copy JSON</button></h3>
-        <pre id="rawText"></pre>
+  <div class="topbar">
+    <button id="themeToggle" type="button">
+      <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+      <span id="themeLabel">Light</span>
+    </button>
+  </div>
+
+  <h1>Certificate OCR System</h1>
+  <p class="subhead">Upload a certificate and extract candidate, title, organization, date, and ID automatically.</p>
+
+  <div id="dropZone">
+    <p id="dropText">Drag a certificate here, or click to browse
+      <span class="hint">JPG · PNG · TIFF · PDF</span>
+    </p>
+    <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.tiff,.pdf" style="display:none;">
+    <div id="previewContainer"></div>
+  </div>
+
+  <div class="actions">
+    <button type="button" id="extractBtn" disabled>Extract Data</button>
+    <button type="button" id="exportBtn" disabled>Download as Excel</button>
+  </div>
+
+  <div id="loadingSpinner">
+    <div class="spin-ring"></div>
+    <span>Reading document…</span>
+  </div>
+
+  <div id="errorMessage"></div>
+
+  <div id="result">
+    <h2>Extracted Fields</h2>
+    <p id="confidenceBadge"></p>
+    <table id="fieldsTable"></table>
+
+    <div class="section-head">
+      <h3>Raw OCR Text</h3>
+      <button type="button" id="copyBtn">Copy JSON</button>
     </div>
+    <pre id="rawText"></pre>
+  </div>
 
-    <script>
-    const dropZone = document.getElementById('dropZone');
-    const fileInput = document.getElementById('fileInput');
-    const previewContainer = document.getElementById('previewContainer');
-    const extractBtn = document.getElementById('extractBtn');
-    const errorBox = document.getElementById('errorMessage');
-    const resultBox = document.getElementById('result');
-    const exportBtn = document.getElementById('exportBtn');
-    const copyBtn = document.getElementById('copyBtn');
-    let lastExtractedData = null;
+  <footer>Certificate OCR System — Built with FastAPI &amp; Tesseract</footer>
 
-    let selectedFile = null;
+<script>
+  // Theme handling
+  const themeToggle = document.getElementById('themeToggle');
+  const themeLabel = document.getElementById('themeLabel');
+  const root = document.documentElement;
 
-    dropZone.addEventListener('click', () => fileInput.click());
+  function applyTheme(theme) {
+    if (theme === 'dark') {
+      root.setAttribute('data-theme', 'dark');
+      themeLabel.textContent = 'Dark';
+    } else {
+      root.removeAttribute('data-theme');
+      themeLabel.textContent = 'Light';
+    }
+    localStorage.setItem('ocr-theme', theme);
+  }
 
-    dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropZone.style.borderColor = '#4a90d9';
-        dropZone.style.background = '#f0f7ff';
-    });
+  const savedTheme = localStorage.getItem('ocr-theme') ||
+    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  applyTheme(savedTheme);
 
-    dropZone.addEventListener('dragleave', () => {
-        dropZone.style.borderColor = '#999';
-        dropZone.style.background = '';
-    });
+  themeToggle.addEventListener('click', () => {
+    const current = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+    applyTheme(current === 'dark' ? 'light' : 'dark');
+  });
 
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.style.borderColor = '#999';
-        dropZone.style.background = '';
-        if (e.dataTransfer.files.length) {
-            handleFile(e.dataTransfer.files[0]);
-        }
-    });
+  // App logic
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+  const previewContainer = document.getElementById('previewContainer');
+  const extractBtn = document.getElementById('extractBtn');
+  const exportBtn = document.getElementById('exportBtn');
+  const errorBox = document.getElementById('errorMessage');
+  const resultBox = document.getElementById('result');
+  const copyBtn = document.getElementById('copyBtn');
 
-    fileInput.addEventListener('change', () => {
-        if (fileInput.files.length) {
-            handleFile(fileInput.files[0]);
-        }
-    });
+  let selectedFile = null;
+  let lastExtractedData = null;
 
-    function handleFile(file) {
-        selectedFile = file;
-        extractBtn.disabled = false;
-        exportBtn.disabled = false;
-        previewContainer.innerHTML = '';
+  dropZone.addEventListener('click', () => fileInput.click());
 
-        if (file.type.startsWith('image/')) {
-            const img = document.createElement('img');
-            img.src = URL.createObjectURL(file);
-            img.style.maxWidth = '200px';
-            img.style.maxHeight = '200px';
-            img.style.borderRadius = '4px';
-            previewContainer.appendChild(img);
-        } else {
-            previewContainer.textContent = `📄 ${file.name}`;
-        }
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('dragging');
+  });
+
+  dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('dragging');
+  });
+
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragging');
+    if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) handleFile(fileInput.files[0]);
+  });
+
+  function handleFile(file) {
+    selectedFile = file;
+    extractBtn.disabled = false;
+    exportBtn.disabled = false;
+    previewContainer.innerHTML = '';
+
+    if (file.type.startsWith('image/')) {
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(file);
+      previewContainer.appendChild(img);
+    } else {
+      const chip = document.createElement('div');
+      chip.className = 'file-chip';
+      chip.textContent = `📄 ${file.name}`;
+      previewContainer.appendChild(chip);
+    }
+  }
+
+  extractBtn.addEventListener('click', async () => {
+    if (!selectedFile) return;
+
+    errorBox.style.display = 'none';
+    resultBox.style.display = 'none';
+    document.getElementById('loadingSpinner').style.display = 'flex';
+    extractBtn.disabled = true;
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    try {
+      const response = await fetch('/extract', { method: 'POST', body: formData });
+      const data = await response.json();
+
+      document.getElementById('loadingSpinner').style.display = 'none';
+      extractBtn.disabled = false;
+
+      if (!response.ok) {
+        errorBox.textContent = data.detail || 'Something went wrong. Please try again.';
+        errorBox.style.display = 'block';
+        return;
+      }
+
+      const badge = document.getElementById('confidenceBadge');
+      const confidence = data.confidence;
+      badge.textContent = `OCR Confidence: ${confidence}%`;
+      if (confidence >= 75) {
+        badge.style.background = 'var(--success-bg)';
+        badge.style.color = 'var(--success-text)';
+      } else if (confidence >= 50) {
+        badge.style.background = 'var(--warn-bg)';
+        badge.style.color = 'var(--warn-text)';
+      } else {
+        badge.style.background = 'var(--alert-bg)';
+        badge.style.color = 'var(--alert-text)';
+      }
+
+      const table = document.getElementById('fieldsTable');
+      table.innerHTML = '';
+      for (const [key, value] of Object.entries(data.extracted_fields)) {
+        const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        table.innerHTML += `<tr><th>${label}</th><td>${value ?? '—'}</td></tr>`;
+      }
+      document.getElementById('rawText').textContent = data.raw_text;
+      lastExtractedData = data.extracted_fields;
+      resultBox.style.display = 'block';
+    } catch (err) {
+      document.getElementById('loadingSpinner').style.display = 'none';
+      extractBtn.disabled = false;
+      errorBox.textContent = 'Could not connect to the server. Please check your connection and try again.';
+      errorBox.style.display = 'block';
+    }
+  });
+
+  exportBtn.addEventListener('click', async () => {
+    if (!selectedFile) return;
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    const response = await fetch('/export', { method: 'POST', body: formData });
+
+    if (!response.ok) {
+      const data = await response.json();
+      errorBox.textContent = data.detail || 'Export failed. Please try again.';
+      errorBox.style.display = 'block';
+      return;
     }
 
-    extractBtn.addEventListener('click', async () => {
-        if (!selectedFile) return;
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `extracted_${selectedFile.name}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  });
 
-        errorBox.style.display = 'none';
-        resultBox.style.display = 'none';
-        document.getElementById('loadingSpinner').style.display = 'block';
-        extractBtn.disabled = true;
-
-        const formData = new FormData();
-        formData.append('file', selectedFile);
-
-        try {
-            const response = await fetch('/extract', { method: 'POST', body: formData });
-            const data = await response.json();
-
-            document.getElementById('loadingSpinner').style.display = 'none';
-            extractBtn.disabled = false;
-
-            if (!response.ok) {
-                errorBox.textContent = data.detail || 'Something went wrong. Please try again.';
-                errorBox.style.display = 'block';
-                return;
-            }
-
-            const badge = document.getElementById('confidenceBadge');
-            const confidence = data.confidence;
-            badge.textContent = `OCR Confidence: ${confidence}%`;
-            if (confidence >= 75) {
-                badge.style.background = '#e6f4ea';
-                badge.style.color = '#1e7e34';
-            } else if (confidence >= 50) {
-                badge.style.background = '#fff8e1';
-                badge.style.color = '#8a6d00';
-            } else {
-                badge.style.background = '#fdecea';
-                badge.style.color = '#b00020';
-            }
-
-            const table = document.getElementById('fieldsTable');
-            table.innerHTML = '';
-            for (const [key, value] of Object.entries(data.extracted_fields)) {
-                table.innerHTML += `<tr><th>${key}</th><td>${value ?? 'Not found'}</td></tr>`;
-            }
-            document.getElementById('rawText').textContent = data.raw_text;
-            lastExtractedData = data.extracted_fields;
-            resultBox.style.display = 'block';
-        } catch (err) {
-            document.getElementById('loadingSpinner').style.display = 'none';
-            extractBtn.disabled = false;
-            errorBox.textContent = 'Could not connect to the server. Please check your connection and try again.';
-            errorBox.style.display = 'block';
-        }
-    });
-    exportBtn.addEventListener('click', async () => {
-        if (!selectedFile) return;
-
-        const formData = new FormData();
-        formData.append('file', selectedFile);
-
-        const response = await fetch('/export', { method: 'POST', body: formData });
-
-        if (!response.ok) {
-            const data = await response.json();
-            errorBox.textContent = data.detail || 'Export failed. Please try again.';
-            errorBox.style.display = 'block';
-            return;
-        }
-
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `extracted_${selectedFile.name}.xlsx`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-    });
-    copyBtn.addEventListener('click', () => {
-        if (!lastExtractedData) return;
-        navigator.clipboard.writeText(JSON.stringify(lastExtractedData, null, 2))
-            .then(() => {
-                copyBtn.textContent = 'Copied!';
-                setTimeout(() => { copyBtn.textContent = 'Copy JSON'; }, 1500);
-            });
-    });
-    </script>
+  copyBtn.addEventListener('click', () => {
+    if (!lastExtractedData) return;
+    navigator.clipboard.writeText(JSON.stringify(lastExtractedData, null, 2))
+      .then(() => {
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => { copyBtn.textContent = 'Copy JSON'; }, 1500);
+      });
+  });
+</script>
 </body>
 </html>

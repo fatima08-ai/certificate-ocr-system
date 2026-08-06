@@ -1,5 +1,27 @@
 import re
 
+CERTIFICATE_INDICATORS = [
+    "certificate", "certifies", "certification", "completion",
+    "achievement", "awarded", "diploma", "recognition"
+]
+
+STRONG_PHRASES = [
+    "this certifies that", "has successfully completed", "certificate of",
+    "is hereby awarded", "in recognition of", "awarded to"
+]
+
+def is_likely_certificate(raw_text: str) -> bool:
+    """Heuristic check: does this text look structurally like a certificate,
+    not just contain an incidental keyword?"""
+    text_lower = raw_text.lower()
+
+    if any(phrase in text_lower for phrase in STRONG_PHRASES):
+        return True
+
+    matches = sum(1 for keyword in CERTIFICATE_INDICATORS if keyword in text_lower)
+    return matches >= 2
+
+
 def extract_fields(raw_text: str) -> dict:
     """Parse structured fields out of raw OCR text using pattern matching."""
 
@@ -18,7 +40,7 @@ def extract_fields(raw_text: str) -> dict:
     if date_match:
         fields["issue_date"] = date_match.group()
 
-    cert_id_match = re.search(r'\b[A-Z0-9]{2,8}(?:-[A-Z0-9]{2,8}){1,3}\b', raw_text)
+    cert_id_match = re.search(r'\b(?=[A-Z0-9-]*\d)[A-Z0-9]{2,8}(?:-[A-Z0-9]{2,8}){1,3}\b', raw_text)
     if cert_id_match:
         fields["certificate_number"] = cert_id_match.group()
 

@@ -12,6 +12,7 @@ from app.core.ocr_engine import extract_text
 from app.core.extractor import extract_fields
 from app.models.database import init_db, get_db, CertificateRecord
 from typing import List
+from app.core.extractor import extract_fields, is_likely_certificate
 
 app = FastAPI(title="Certificate OCR System")
 templates = Jinja2Templates(directory="templates")
@@ -79,10 +80,27 @@ async def extract_certificate(file: UploadFile = File(...), db: Session = Depend
         else:
             raise HTTPException(status_code=500, detail=f"OCR processing failed: {error_msg}")
 
+    if not is_likely_certificate(raw_text):
+        raise HTTPException(
+            status_code=422,
+            detail="This doesn't look like a certificate. No certificate-related text "
+                   "(e.g. 'certificate', 'completion', 'achievement') was detected in the "
+                   "document. Please upload a valid certificate image or PDF."
+        )
+
     try:
-        structured_data = extract_fields(raw_text)
+        ocr_result = extract_text(save_path)
+        raw_text = ocr_result["text"]
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Field extraction failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+
+    if not is_likely_certificate(raw_text):
+        raise HTTPException(
+            status_code=422,
+            detail="This doesn't look like a certificate. Please upload a valid certificate."
+        )
+
+    structured_data = extract_fields(raw_text)
 
     record = CertificateRecord(
         filename=file.filename,
@@ -152,9 +170,17 @@ async def export_to_excel(file: UploadFile = File(...)):
 
     try:
         ocr_result = extract_text(save_path)
-        structured_data = extract_fields(ocr_result["text"])
+        raw_text = ocr_result["text"]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+
+    if not is_likely_certificate(raw_text):
+        raise HTTPException(
+            status_code=422,
+            detail="This doesn't look like a certificate. Please upload a valid certificate."
+        )
+
+    structured_data = extract_fields(raw_text)
 
     wb = Workbook()
     ws = wb.active
@@ -205,6 +231,14 @@ async def extract_batch(files: List[UploadFile] = File(...), db: Session = Depen
             ocr_result = extract_text(save_path)
             raw_text = ocr_result["text"]
             confidence = ocr_result["confidence"]
+            if not is_likely_certificate(raw_text):
+                results.append({
+                    "filename": file.filename,
+                    "success": False,
+                    "error": "This doesn't look like a certificate."
+                })
+                continue
+
             structured_data = extract_fields(raw_text)
 
             record = CertificateRecord(

@@ -3,7 +3,7 @@
 A full-stack web application that automatically extracts structured information
 (candidate name, certificate title, issuing organization, date, and certificate
 number) from certificate images and PDFs using Tesseract OCR — with database
-persistence, batch processing, and Excel export.
+persistence, batch processing, non-certificate detection, and Excel export.
 
 Built as Task 1 for the Teerop Pvt. Limited AI & Machine Learning Internship Program.
 
@@ -36,23 +36,37 @@ Built as Task 1 for the Teerop Pvt. Limited AI & Machine Learning Internship Pro
   organization, issue date, certificate number
 - OCR confidence scoring with a color-coded on-page indicator (green ≥75%,
   yellow 50–74%, red <50%)
+- **Non-certificate detection** — rejects uploads that don't contain
+  certificate-like language (e.g. random photos, unrelated documents) before
+  returning empty/misleading results
 
 ### Data & Export
-- SQLite database persistence — every extraction is automatically saved
+- SQLite database persistence — every successful extraction is automatically saved
 - `GET /results/{id}` to retrieve any past extraction
 - `DELETE /documents/{id}` to remove a saved record
 - Batch processing endpoint (`/extract-batch`) for handling multiple certificates
   in a single request
-- One-click Excel (.xlsx) export of extracted fields, with auto-sized columns
-  and formatted headers
+- One-click Excel (.xlsx) export of extracted fields, with auto-sized columns,
+  cleaned field labels, and formatted headers
 - Copy-to-clipboard button for extracted data as JSON
+
+### Interface
+- Custom-designed UI (not a default template) with a document/scanner-inspired
+  visual identity
+- **Light and dark mode**, auto-detected from system preference on first visit
+  and remembered afterward
+- Drag-active "scan sweep" animation tying the interaction directly to what
+  the app does
+- Loading state during processing, disabled buttons to prevent double-submission
 
 ### Reliability
 - Graceful error handling on both backend and frontend (no raw stack traces
   or browser popups shown to the user)
 - Specific, actionable error messages for common failure modes (missing
-  Tesseract, missing Poppler, empty files, unsupported formats, memory errors)
-- Unit tests for extraction logic and integration tests for API endpoints
+  Tesseract, missing Poppler, empty files, unsupported formats, memory errors,
+  non-certificate content)
+- Unit tests for extraction and validation logic, plus integration tests for
+  API endpoints (9 tests, all passing)
 
 ---
 
@@ -75,25 +89,26 @@ Built as Task 1 for the Teerop Pvt. Limited AI & Machine Learning Internship Pro
 
 ```
 ┌───────────────────────┐
-│   Frontend (HTML/JS)   │  Drag-and-drop upload, results display, Excel download
+│   Frontend (HTML/JS)   │  Drag-and-drop upload, light/dark UI, results, Excel download
 └───────────┬────────────┘
             │ HTTP (multipart/form-data)
 ┌───────────▼────────────┐
 │    FastAPI Backend      │  Routing, validation, error handling
 └───────────┬────────────┘
             │
-   ┌────────┼─────────┬──────────────┐
-   ▼        ▼         ▼              ▼
-┌───────┐ ┌──────┐ ┌──────────┐ ┌───────────┐
-│Preproc │ │ OCR  │ │Extractor │ │  SQLite   │
-│(OpenCV,│ │(Tess-│ │ (regex / │ │ (persist  │
-│deskew) │ │eract)│ │ keyword) │ │  results) │
-└───────┘ └──────┘ └──────────┘ └───────────┘
+   ┌────────┼─────────┬──────────────┬───────────────┐
+   ▼        ▼          ▼              ▼               ▼
+┌───────┐ ┌──────┐ ┌──────────┐ ┌───────────┐ ┌──────────────┐
+│Preproc │ │ OCR  │ │Validator │ │ Extractor │ │   SQLite     │
+│(OpenCV,│ │(Tess-│ │(is this a│ │ (regex /  │ │ (persist     │
+│deskew) │ │eract)│ │cert?)    │ │ keyword)  │ │  results)    │
+└───────┘ └──────┘ └──────────┘ └───────────┘ └──────────────┘
 ```
 
 **Processing flow:** Upload → validate file type/size → save temp file →
 preprocess image (upscale, deskew, threshold) → OCR extraction with confidence
-scoring → structured field parsing → save to database → return JSON response.
+scoring → **content validation** (reject if not certificate-like) → structured
+field parsing → save to database → return JSON response.
 
 ---
 
@@ -106,7 +121,7 @@ scoring → structured field parsing → save to database → return JSON respon
 
 ### Installation
 ```bash
-git clone https://github.com/fatima08-ai/certificate-ocr-system
+git clone <your-repo-url>
 cd certificate-ocr-system
 python -m venv venv
 venv\Scripts\activate
@@ -132,6 +147,7 @@ Visit `http://127.0.0.1:8000` in your browser. The SQLite database
 ```bash
 python -m pytest tests/
 ```
+All 9 tests (API integration + extraction/validation unit tests) should pass.
 
 ---
 
@@ -173,6 +189,14 @@ print(response.json())
 }
 ```
 
+### Example Rejection (non-certificate upload)
+```json
+{
+  "detail": "This doesn't look like a certificate. No certificate-related text (e.g. 'certificate', 'completion', 'achievement') was detected in the document. Please upload a valid certificate image or PDF."
+}
+```
+Returned with HTTP status `422 Unprocessable Entity`.
+
 ---
 
 ## Known Limitations
@@ -182,10 +206,21 @@ print(response.json())
   since Tesseract is trained primarily on standard printed text. This was
   tested and confirmed during development (see `sample_certificates/` for
   both a successful plain-font example and a failed cursive-font example).
+  A deep-learning OCR engine (e.g. EasyOCR) as a fallback for low-confidence
+  results would meaningfully improve this, but was not implemented in this
+  version.
 - **Field extraction is rule-based**, using regex and keyword matching tuned
   to common certificate layouts (e.g. "This certifies that", "has successfully
   completed"). Certificates with significantly different structure or wording
   may not extract all fields correctly, or may place text in the wrong field.
+- **Non-certificate detection is a keyword/phrase heuristic, not true document
+  classification.** It checks for certificate-typical phrases and requires
+  either one strong phrase (e.g. "this certifies that") or at least two weaker
+  keyword matches (e.g. "certificate" + "completion") before accepting a
+  document. This meaningfully reduces false positives compared to a single-
+  keyword check, but it is not bulletproof: a document deliberately written
+  with certificate-like phrasing could still pass, and a genuine certificate
+  with unusual wording could be incorrectly rejected.
 - **Organization detection** assumes the issuing organization's name appears
   on the first line of the certificate. This heuristic worked well for the
   tested samples but is not guaranteed to generalize to all certificate formats.
@@ -213,14 +248,14 @@ certificate-ocr-system/
 │   ├── core/
 │   │   ├── ocr_engine.py       # OCR + PDF processing + confidence scoring
 │   │   ├── preprocessor.py     # Image enhancement (upscale, deskew, threshold)
-│   │   └── extractor.py        # Structured field extraction
+│   │   └── extractor.py        # Field extraction + non-certificate validation
 │   └── models/
 │       └── database.py         # SQLAlchemy models and session management
 ├── templates/
-│   └── index.html              # Web interface
+│   └── index.html              # Web interface (light/dark mode)
 ├── tests/
 │   ├── test_api.py             # API endpoint tests
-│   └── test_extractor.py       # Extraction logic unit tests
+│   └── test_extractor.py       # Extraction + validation unit tests
 ├── sample_certificates/        # Sample test certificates (clean + hard-case)
 ├── screenshots/                # Application screenshots
 ├── uploads/                    # Temporary upload storage
@@ -234,8 +269,10 @@ certificate-ocr-system/
 
 ## Future Improvements
 
+- Deep-learning OCR fallback (e.g. EasyOCR) for cursive/script font certificates
 - Batch upload UI on the frontend (currently API-only)
 - Confidence-weighted field validation (flag low-confidence fields for manual review)
 - Multi-language OCR support
 - QR/barcode detection for certificates that embed verification codes
 - User authentication and per-user document history
+- Upgrade `on_event` startup hook to FastAPI's newer lifespan event handlers
