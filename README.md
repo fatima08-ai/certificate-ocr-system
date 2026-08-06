@@ -15,13 +15,14 @@ Built as Task 1 for the Teerop Pvt. Limited AI & Machine Learning Internship Pro
 ![Drag and drop upload](screenshots/drag-and-drop.png)
 
 **Text extraction from a real certificate**
-![Text extraction result](screenshots/test_text_extraction.png)
+![Text extraction result](screenshots/test_text-extraction.png)
 
 **OCR confidence indicator + copy-to-clipboard JSON export**
-![Confidence meter and copy JSON](screenshots/confidence-meter-copy-json.png)
+![Confidence meter and copy JSON](screenshots/confidence-meter_copy-json.png)
 
 **One-click Excel export**
 ![Downloaded Excel export](screenshots/downloaded-as-excel.png)
+
 
 ---
 
@@ -275,4 +276,4 @@ certificate-ocr-system/
 - Multi-language OCR support
 - QR/barcode detection for certificates that embed verification codes
 - User authentication and per-user document history
-- Upgrade `on_event` startup hook to FastAPI's newer lifespan event handlers
+
