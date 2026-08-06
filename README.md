@@ -9,23 +9,6 @@ Built as Task 1 for the Teerop Pvt. Limited AI & Machine Learning Internship Pro
 
 ---
 
-## Screenshots
-
-**Drag-and-drop upload interface**
-![Drag and drop upload](screenshots/drag-and-drop.png)
-
-**Text extraction from a real certificate**
-![Text extraction result](screenshots/test_text-extraction.png)
-
-**OCR confidence indicator + copy-to-clipboard JSON export**
-![Confidence meter and copy JSON](screenshots/confidence-meter_copy-json.png)
-
-**One-click Excel export**
-![Downloaded Excel export](screenshots/downloaded-as-excel.png)
-
-
----
-
 ## Features
 
 ### Core Pipeline
@@ -258,7 +241,6 @@ certificate-ocr-system/
 │   ├── test_api.py             # API endpoint tests
 │   └── test_extractor.py       # Extraction + validation unit tests
 ├── sample_certificates/        # Sample test certificates (clean + hard-case)
-├── screenshots/                # Application screenshots
 ├── uploads/                    # Temporary upload storage
 ├── certificates.db             # SQLite database (auto-created on startup)
 ├── main.py                     # Application entry point and all routes
@@ -276,4 +258,4 @@ certificate-ocr-system/
 - Multi-language OCR support
 - QR/barcode detection for certificates that embed verification codes
 - User authentication and per-user document history
-
+- Upgrade `on_event` startup hook to FastAPI's newer lifespan event handlers
